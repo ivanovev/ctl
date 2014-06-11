@@ -1,4 +1,6 @@
 ctl
 ===
 
-ctl module for 'start'
+Module with interface to microcontroller boards for
+https://github.com/ivanovev/start.git
+
