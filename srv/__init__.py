@@ -1,3 +1,3 @@
 
-from . import SAM7X, STM32VCP
+from . import SAM7X, STM32USB, STM32ETH
 
