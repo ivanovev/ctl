@@ -15,14 +15,14 @@ from .text2 import Text2
 class TextIO(DataIO):
     def __init__(self, dev):
         data = Data()
-        DataIO.__init__(self, data=data, dev=dev, title='Tcl edit')
-        self.fileext = 'tcl'
+        DataIO.__init__(self, data=data, dev=dev, title='Pcl edit')
+        self.fileext = 'pcl'
         self.filemode = 'r'
         self.center()
 
     def init_io(self):
         del self.io[:]
-        self.io.add(lambda: self.efc_cb1('tcl'), self.tmp_cb2, self.tmp_cb3, self.cmdio_thread)
+        self.io.add(lambda: self.efc_cb1('pcl'), self.tmp_cb2, self.tmp_cb3, self.cmdio_thread)
         self.io.add(self.text_cb1, self.text_cb2, lambda: True, self.textio_thread)
 
     def append_wdgt(self, column, name, label, text, width=None, state=None, msg='', row=0, columnspan=1):
@@ -113,11 +113,13 @@ class TextIO(DataIO):
         self.update_progress()
         return False
 
-    def tclupd_cb1(self):
+    '''
+    def pclupd_cb1(self):
         if self.read:
             return False
         else:
-            return self.tmp_cb1('sleep 2', telnet_io_cb(self.data.dev, 'efc tclupdate'))
+            return self.tmp_cb1('sleep 2', telnet_io_cb(self.data.dev, 'efc pclupdate'))
+    '''
 
     def chunks(self, l, n):
         """ Yield successive n-sized chunks from l.
