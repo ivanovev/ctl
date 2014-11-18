@@ -34,7 +34,7 @@ class EthDebug(Monitor):
         self.add_main_menu()
 
         self.ft = tk.Frame(self.frame)
-        self.ft.grid(column=0, row=0, columnspan=2, sticky=tk.N)
+        self.ft.grid(column=0, row=0, sticky=tk.N)
         b = tk.Button(self.ft, text='>', command=self.add_cb)
         b.pack(side=tk.LEFT, padx=5, pady=5)
         b = tk.Button(self.ft, text='<', command=self.del_cb)
@@ -42,9 +42,11 @@ class EthDebug(Monitor):
         b = tk.Button(self.ft, text='Start', command=self.start_stop_cb)
         b.pack(side=tk.LEFT, padx=5, pady=5)
 
+        self.paned = tk.PanedWindow(self.frame, orient=tk.HORIZONTAL, sashrelief=tk.RAISED)
+        self.paned.grid(column=0, row=1, sticky=tk.NSEW)
 
-        self.fl = tk.Frame(self.frame)
-        self.fl.grid(column=0, row=1, sticky=tk.NSEW)
+        self.fl = tk.Frame(self.paned)
+        self.paned.add(self.fl, sticky=tk.NSEW, padx=5)
         w = self.tree_add(self.fl, width1=0, columns=self.columns1)
         self.tree1 = self.tree
         self.add_widget_with_scrolls(self.fl, w)
@@ -52,8 +54,8 @@ class EthDebug(Monitor):
         self.tree1.column(self.columns1[1], stretch=0)
         self.tree1.column(self.columns1[2], stretch=0)
 
-        self.fr = tk.Frame(self.frame)
-        self.fr.grid(column=1, row=1, sticky=tk.NSEW)
+        self.fr = tk.Frame(self.paned)
+        self.paned.add(self.fr, sticky=tk.NSEW, padx=5)
         w = self.tree_add(self.fr, width1=0, columns=self.columns2)
         self.tree2 = self.tree
         self.tree2.configure(displaycolumns=[self.columns2[i] for i in [0,3]])
@@ -62,7 +64,6 @@ class EthDebug(Monitor):
         self.tree2.column(self.columns2[3], stretch=1)
 
         self.frame.columnconfigure(0, weight=1)
-        self.frame.columnconfigure(1, weight=1)
         self.frame.rowconfigure(0, weight=0)
         self.frame.rowconfigure(1, weight=1)
 
@@ -107,14 +108,21 @@ class EthDebug(Monitor):
                     v['addr'] = '%.8x' % (addr + i)
                     self.tree_add_lvl1(self.tree1, lvl0, v, expand=False)
 
+    def get_conn_data(self):
+        conn = Data(name='conn')
+        conn.add('remote_ip_addr', label='Remote IP address', wdgt='combo', value=['192.168.0.1'], text='192.168.0.1')
+        conn.add('remote_port', label='Remote port', wdgt='combo', value=['32784'], text='32784')
+        conn.add('local_ip_addr', label='Local IP address', wdgt='combo', value=['127.0.0.1'], text='127.0.0.1')
+        conn.add('local_port', label='Local port', wdgt='combo', value=['32784'], text='32784')
+        conn.add('packet_sz', label='UDP Packet size', wdgt='entry', text='256')
+        conn.add('period_ms', label='Data exchange period, ms', wdgt='entry', text='100')
+        if hasattr(self, 'conn'):
+            for k,v in self.conn.items():
+                conn.set_value(k,v)
+        return conn
+
     def connection_cb(self, *args):
-        data = Data(name='conn')
-        data.add('remote_ip_addr', label='Remote IP address', wdgt='combo', value=['192.168.0.1'], text='192.168.0.1')
-        data.add('remote_port', label='Remote port', wdgt='combo', value=['32784'], text='32784')
-        data.add('local_ip_addr', label='Local IP address', wdgt='combo', value=['127.0.0.1'], text='127.0.0.1')
-        data.add('local_port', label='Local port', wdgt='combo', value=['32784'], text='32784')
-        data.add('packet_sz', label='UDP Packet size', wdgt='entry', text='256')
-        data.add('period_ms', label='Data exchange period, ms', wdgt='entry', text='100')
+        data = self.get_conn_data()
         dlg = Control(data=data, parent=self.root, title='Connection settings', pady=5)
         dlg.add_buttons_ok_cancel()
         dlg.do_modal()
@@ -122,16 +130,14 @@ class EthDebug(Monitor):
             return
         if len(dlg.kw.keys()) == 0:
             return
-        return dlg.kw
+        self.conn = dlg.kw
 
     def hidetree1_cb(self, *args):
         v = args[1]
         if int(v.get()):
-            self.fl.grid_forget()
-            self.frame.columnconfigure(0, weight=0)
+            self.paned.remove(self.fl)
         else:
-            self.fl.grid(column=0, row=1, sticky=tk.NSEW)
-            self.frame.columnconfigure(0, weight=1)
+            self.paned.add(self.fl, before=self.fr)
 
     def add_cb(self, *args):
         id1 = self.tree1.selection()
@@ -173,12 +179,16 @@ class EthDebug(Monitor):
             self.addresses[data['addr']] = data['name']
 
     def start_stop_cb(self, *args):
-        UDP_IP = "127.0.0.1"
-        UDP_PORT = 1234
-        msg = "1234"
+        data = self.get_conn_data()
+        remote_ip_addr = data.get_value('remote_ip_addr')
+        remote_port = int(data.get_value('remote_port'))
+        local_ip_addr = data.get_value('local_ip_addr')
+        local_port = int(data.get_value('local_port'))
+        msg = '1234'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(('127.0.0.1', UDP_PORT))
-        sock.sendto(msg.encode('ascii'), ('192.168.0.1', UDP_PORT))
+        sock.bind((local_ip_addr, local_port))
+        print(msg.encode('ascii'), (remote_ip_addr, remote_port))
+        sock.sendto(msg.encode('ascii'), (remote_ip_addr, remote_port))
         data, addr = sock.recvfrom(1024)
         print(data)
         '''
