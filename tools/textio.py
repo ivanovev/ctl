@@ -5,11 +5,10 @@ import tkinter as tk
 import tkinter.ttk as ttk
 import pdb
 
-from util import Data, UI, telnet_io_cb
+from util import Data
 from util.dataio import DataIO
 from util.socketio import recv_data, send_data, chunks
-from util.control import Control
-from util.server import proxy
+from util.columns import *
 from .text2 import Text2
 
 class TextIO(DataIO):
@@ -40,7 +39,8 @@ class TextIO(DataIO):
         self.append_wdgt(2, 'fszhex', '', '0', 8, 'readonly', 'hex')
         self.append_wdgt(3, 'fszsel', '', '0', 8, 'readonly', 'selection')
         self.append_wdgt(4, 'fszselhex', '', '0', 8, 'readonly', 'selection hex')
-        self.append_wdgt(0, 'md5', 'MD5', '0', 40, 'readonly', row=1, columnspan=3)
+        self.append_wdgt(0, 'crc32', 'CRC32', '0', 15, 'readonly', row=1)
+        self.append_wdgt(1, 'md5', 'MD5', '0', 40, 'readonly', row=1, columnspan=3)
         self.txt = Text2(self.frame)
         self.txt.grid(column=0, row=2, sticky=tk.NSEW)
         self.frame.columnconfigure(0, weight=1)
@@ -81,18 +81,22 @@ class TextIO(DataIO):
         return data
 
     def textio_thread(self):
+        dev = self.data.dev
+        port = 8888
         ip_addr = self.data.get_value('ip_addr')
         if self.read:
             q = self.qi
             self.fsz = int(self.io.ioval['fsz'])
             self.io_func = recv_data
+            if dev[c_type] == 'SAM7X':
+                port = 8889
         else:
             q = self.qo
             self.fsz = int(self.data.get_value('fsz'))
             self.io_func = send_data
         if not self.fsz:
             return
-        self.io_func(ip_addr, q, self.fsz)
+        self.io_func(ip_addr, port, q, fsz=self.fsz)
         self.io_func.t.join()
 
     def text_cb1(self):
@@ -112,14 +116,6 @@ class TextIO(DataIO):
             self.text_append(self.txt.text, line, see=False)
         self.update_progress()
         return False
-
-    '''
-    def pclupd_cb1(self):
-        if self.read:
-            return False
-        else:
-            return self.tmp_cb1('sleep 2', telnet_io_cb(self.data.dev, 'efc pclupdate'))
-    '''
 
     def chunks(self, l, n):
         """ Yield successive n-sized chunks from l.
