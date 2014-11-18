@@ -19,10 +19,10 @@ def STM32ETH_telnet(ip_addr, cmd, *args):
         return
     try:
         tn = Telnet(ip_addr)
-        s = tn.read_until(b'#> ', 2)
+        s = tn.read_until(b'#> ', 5)
         cmd += '\n\r'
         tn.write(cmd.encode('ascii'))
-        s = tn.read_until(b'#> ', 2)
+        s = tn.read_until(b'#> ', 5)
         tn.close()
 
         def splitstr(s, b):
