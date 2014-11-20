@@ -1,7 +1,7 @@
 
 from collections import OrderedDict as OD
 from util import process_cb
-from ..tools import TextIO, FWupgrade
+from ..tools import TextIO, FWupgrade, EthDebug
 
 def startup_cb(apps, mode, dev):
     if mode == 'ethdbg':
