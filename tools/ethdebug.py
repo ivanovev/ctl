@@ -35,11 +35,13 @@ class EthDebug(Monitor):
 
         self.ft = tk.Frame(self.frame)
         self.ft.grid(column=0, row=0, sticky=tk.N)
-        b = tk.Button(self.ft, text='>', command=self.add_cb)
+        b = tk.Button(self.ft, text='>>', command=self.add_cb)
         b.pack(side=tk.LEFT, padx=5, pady=5)
-        b = tk.Button(self.ft, text='<', command=self.del_cb)
+        b = tk.Button(self.ft, text='<<', command=self.del_cb)
         b.pack(side=tk.LEFT, padx=5, pady=5)
         b = tk.Button(self.ft, text='Start', command=self.start_stop_cb)
+        b.pack(side=tk.LEFT, padx=5, pady=5)
+        b = tk.Button(self.ft, text='Plot', command=self.plot_cb)
         b.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.paned = tk.PanedWindow(self.frame, orient=tk.HORIZONTAL, sashrelief=tk.RAISED)
@@ -69,7 +71,7 @@ class EthDebug(Monitor):
 
     def init_io(self):
         del self.io[:]
-        self.io.add(self.udp_cb1, self.udp_cb2, self.udp_cb3, self.udpio_thread)
+        self.io.add(self.dbg_cb1, self.dbg_cb2, self.dbg_cb3, self.dbgio_thread)
 
     def fileopen(self, *args):
         self.tree_clear(self.tree1)
@@ -97,11 +99,13 @@ class EthDebug(Monitor):
             objects[ll[1]] = OD([('name',ll[7]),('addr',ll[1]),('sz',ll[2])])
         for k,v in objects.items():
             lvl0 = v['name']
-            id0 = self.tree_add_lvl0(self.tree1, v)
+            addr = int(v['addr'], 16)
             sz = int(v['sz'])
             if sz > 4:
+                v.pop('addr')
+            id0 = self.tree_add_lvl0(self.tree1, v)
+            if sz > 4:
                 v['sz'] = '4'
-                addr = int(v['addr'], 16)
                 name = v['name']
                 for i in range(0, sz, 4):
                     v['name'] = name + '+%.2x' % i
@@ -185,6 +189,8 @@ class EthDebug(Monitor):
         local_ip_addr = data.get_value('local_ip_addr')
         local_port = int(data.get_value('local_port'))
         msg = '1234'
+        self.io.start()
+        '''
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind((local_ip_addr, local_port))
         print(msg.encode('ascii'), (remote_ip_addr, remote_port))
@@ -192,29 +198,42 @@ class EthDebug(Monitor):
         data, addr = sock.recvfrom(1024)
         print(data)
         '''
+        '''
         self.startio = not self.startio
         if self.startio:
             self.addresses = OD()
             self.tree = self.tree2
-            self.iteritems(self.addr_itemid_cb)
+            self.iteritems(self.tree1, self.addr_itemid_cb)
             print(self.addresses)
             self.root.after_idle(self.io.start)
         '''
 
-    def udp_cb1(self, *args):
-        print('udp_cb1')
-        return self.startio
+    def plot_cb(self, *args):
+        print("start_plot_cb")
 
-    def udp_cb2(self, *args):
-        print('udp_cb2', *args)
+    def get_addresses_cb(self, itemid):
+        data = self.tree_data(self.tree2, itemid)
+        if 'addr' not in data:
+            return
+        self.addresses.append(data['addr'])
+
+    def dbg_cb1(self, *args):
+        self.addresses = []
+        self.iteritems(self.tree2, self.get_addresses_cb, None)
+        print(self.addresses)
+        #return self.startio
         return False
 
-    def udp_cb3(self, *args):
-        print('udp_cb3', *args)
+    def dbg_cb2(self, *args):
+        print('dbg_cb2', *args)
+        return False
+
+    def dbg_cb3(self, *args):
+        print('dbg_cb3', *args)
         self.root.after(1000, lambda: self.io.start(0))
         return False
 
-    def udpio_thread(self):
+    def dbgio_thread(self):
         while True:
             time.sleep(1)
             break

@@ -3,6 +3,7 @@ from telnetlib import Telnet
 from re import compile
 from util.misc import ping
 from util.socketio import send_data, recv_data, get_fsz
+import socket
 
 def STM32ETH_telnet(ip_addr, cmd, *args):
     '''
@@ -59,4 +60,21 @@ def STM32ETH_send_file(ip_addr, fname, src):
         assert STM32ETH_telnet(ip_addr, 'flash rx2 %s' % fsz)
         send_data(ip_addr, 8888, fname)
         send_data.t.join()
+
+def STM32ETH_dbg(ip_addr='192.168.0.1', port='1234', addr0='0', *addrn):
+    port = int(port)
+    addrn = list(addrn)
+    addrn.insert(0, addr0)
+    msg = bytes()
+    for a in addrn:
+        a = int(a, 16)
+        for i in range(0, 4):
+            msg += bytes([(a >> 8*(3-i)) & 0xFF])
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.sendto(msg, (ip_addr, port))
+    data, addr = sock.recvfrom(len(msg))
+    dd = []
+    for i in range(0, len(data), 4):
+        dd.append('0x%s' % ''.join('%.2X' % data[i+j] for j in range(0, 4)))
+    return ' '.join(dd)
 
