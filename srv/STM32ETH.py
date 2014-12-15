@@ -78,3 +78,6 @@ def STM32ETH_dbg(ip_addr='192.168.0.1', port='1234', addr0='0', *addrn):
         dd.append('0x%s' % ''.join('%.2X' % data[i+j] for j in range(0, 4)))
     return ' '.join(dd)
 
+def STM32ETH_tftp_put(ip_addr='192.168.0.1', fname='script.pcl'):
+    print('tftp_put')
+    return ''
