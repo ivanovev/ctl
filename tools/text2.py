@@ -8,7 +8,7 @@ from util import UI
 
 class TextLineNumbers(tk.Canvas):
     def __init__(self, *args, **kwargs):
-        tk.Canvas.__init__(self, *args, **kwargs)
+        tk.Canvas.__init__(self, height=1, *args, **kwargs)
         self.textwidget = None
 
     def attach(self, text_widget):
@@ -29,7 +29,7 @@ class TextLineNumbers(tk.Canvas):
 
 class CustomText(tk.Text):
     def __init__(self, *args, **kwargs):
-        tk.Text.__init__(self, *args, **kwargs)
+        tk.Text.__init__(self, height=1, *args, **kwargs)
 
         self.tk.eval('''
             proc widget_proxy {widget widget_command args} {
