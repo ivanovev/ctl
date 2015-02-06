@@ -1,19 +1,19 @@
 
 from collections import OrderedDict as OD
-from util import Control, Monitor, Data, telnet_io_cb
 from copy import deepcopy
+from util import Control, Monitor, Data, ToolTip, telnet_io_cb, sel_dec, async
 import tkinter as tk
-import socket
-import time
+import asyncio, binascii, socket, struct, time
 import pdb
 
 class EthDebug(Monitor):
     def __init__(self, dev):
         self.fileext = 'symtab'
         self.columns1 = ['name', 'addr', 'sz']
-        self.columns2 = deepcopy(self.columns1)
-        self.columns2.append('value')
+        self.columns2 = ['name', 'addr', 'sz', 'offset'] + ['+%d' % (4*i) for i in range(0, 8)]
+        #print(self.columns2)
         self.startio = False
+        self.aio = True
         Monitor.__init__(self)
         self.root.title('UDP Eth debug')
 
@@ -35,13 +35,15 @@ class EthDebug(Monitor):
 
         self.ft = tk.Frame(self.frame)
         self.ft.grid(column=0, row=0, sticky=tk.N)
-        b = tk.Button(self.ft, text='>>', command=self.add_cb)
+        b = tk.Button(self.ft, text='>>', command=lambda: self.add_cb(self.tree1))
         b.pack(side=tk.LEFT, padx=5, pady=5)
-        b = tk.Button(self.ft, text='<<', command=self.del_cb)
+        b = tk.Button(self.ft, text='<<', command=lambda: self.del_cb(self.tree2))
         b.pack(side=tk.LEFT, padx=5, pady=5)
-        b = tk.Button(self.ft, text='Start', command=self.start_stop_cb)
+        b = tk.Button(self.ft, text='...', command=self.add_memory_cb)
+        ToolTip(b, msg='Add memory region', follow=True, delay=0)
         b.pack(side=tk.LEFT, padx=5, pady=5)
-        b = tk.Button(self.ft, text='Plot', command=self.plot_cb)
+        self.start = tk.IntVar()
+        b = tk.Checkbutton(self.ft, text='Start', variable=self.start, command=lambda: asyncio.async(self.start_stop_cb()))
         b.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.paned = tk.PanedWindow(self.frame, orient=tk.HORIZONTAL, sashrelief=tk.RAISED)
@@ -55,15 +57,21 @@ class EthDebug(Monitor):
         self.tree1.column(self.columns1[0], stretch=1)
         self.tree1.column(self.columns1[1], stretch=0)
         self.tree1.column(self.columns1[2], stretch=0)
+        self.tree1.tag_configure('color', background='lightgray')
 
         self.fr = tk.Frame(self.paned)
         self.paned.add(self.fr, sticky=tk.NSEW, padx=5)
         w = self.tree_add(self.fr, width1=0, columns=self.columns2)
         self.tree2 = self.tree
-        self.tree2.configure(displaycolumns=[self.columns2[i] for i in [0,3]])
+        #self.tree2['show'] = 'headings'
+        displaycolumns = deepcopy(self.columns2)
+        #displaycolumns.pop(displaycolumns.index('addr'))
+        #displaycolumns.pop(displaycolumns.index('sz'))
+        self.tree2.configure(displaycolumns=displaycolumns)
         self.add_widget_with_scrolls(self.fr, w)
         self.tree2.column(self.columns2[0], stretch=1)
         self.tree2.column(self.columns2[3], stretch=1)
+        self.tree2.tag_configure('color', background='lightgray')
 
         self.frame.columnconfigure(0, weight=1)
         self.frame.rowconfigure(0, weight=0)
@@ -77,7 +85,6 @@ class EthDebug(Monitor):
         self.tree_clear(self.tree1)
         fname = args[0]
         f = open(fname)
-        d = {}
         objects = OD()
         for l in f.readlines():
             ll = l.split()
@@ -85,18 +92,30 @@ class EthDebug(Monitor):
                 continue
             if ll[0][-1] != ':':
                 continue
-            if ll[1] in d:
+            addr = ll[1]
+            if addr in objects:
                 continue
-            if ll[3].upper() != 'OBJECT':
+            objtype = ll[3].upper()
+            if objtype != 'OBJECT':
                 continue
+            name = ll[7]
             sz = ll[2]
             try:
                 if not int(sz):
                     continue
             except:
                 continue
-            d[ll[1]] = ll[0]
-            objects[ll[1]] = OD([('name',ll[7]),('addr',ll[1]),('sz',ll[2])])
+            objects[ll[1]] = name #OD([('name',ll[7]),('addr',ll[1]),('sz',ll[2])])
+            sz1 = int(sz)
+            if sz1 <= 4:
+                self.tree1.insert('', 'end', values=(name, addr, sz))
+                continue
+            id0 = self.tree1.insert('', 'end', tags=('color'), values=(name, addr, sz))
+            addr = int(addr, 16)
+            for i in range(0, sz1, 4):
+                sz2 = '4' if i + 4 < sz1 else '%d' % (sz1 - i)
+                self.tree1.insert(id0, 'end', values=(name+'+%.2x'%i, '%.8x'%(addr+i), sz2))
+        '''
         for k,v in objects.items():
             lvl0 = v['name']
             addr = int(v['addr'], 16)
@@ -111,13 +130,14 @@ class EthDebug(Monitor):
                     v['name'] = name + '+%.2x' % i
                     v['addr'] = '%.8x' % (addr + i)
                     self.tree_add_lvl1(self.tree1, lvl0, v, expand=False)
+        '''
 
     def get_conn_data(self):
         conn = Data(name='conn')
-        conn.add('remote_ip_addr', label='Remote IP address', wdgt='combo', value=['192.168.0.1'], text='192.168.0.1')
-        conn.add('remote_port', label='Remote port', wdgt='combo', value=['32784'], text='32784')
-        conn.add('local_ip_addr', label='Local IP address', wdgt='combo', value=['127.0.0.1'], text='127.0.0.1')
-        conn.add('local_port', label='Local port', wdgt='combo', value=['32784'], text='32784')
+        conn.add('remote_ipaddr', label='Remote IP address', wdgt='combo', value=['192.168.0.1'], text='192.168.0.1')
+        conn.add('remote_port', label='Remote port', wdgt='combo', value=['12345'], text='12345')
+        conn.add('local_ipaddr', label='Local IP address', wdgt='combo', value=['127.0.0.1', '192.168.0.100'], text='192.168.0.100')
+        conn.add('local_port', label='Local port', wdgt='combo', value=['54321'], text='54321')
         conn.add('packet_sz', label='UDP Packet size', wdgt='entry', text='256')
         conn.add('period_ms', label='Data exchange period, ms', wdgt='entry', text='100')
         if hasattr(self, 'conn'):
@@ -143,60 +163,120 @@ class EthDebug(Monitor):
         else:
             self.paned.add(self.fl, before=self.fr)
 
-    def add_cb(self, *args):
-        id1 = self.tree1.selection()
-        if not id1:
-            return
-        children = self.tree1.get_children(id1)
-        c1 = self.tree_columns(self.tree1)
-        c2 = self.tree_columns(self.tree2)
-        def copy1(data, lvl0):
-            sz = int(data['sz'])
-            if sz <= 4:
-                fmt = '%%.%dx' % (sz*2)
-                value = fmt % 0
-                data['value'] = value
-            if not lvl0:
-                return self.tree_add_lvl0(self.tree2, data)
+    def add_memory(self, name, addr, sz):
+        addr = int(addr, 16)
+        sz = int(sz)
+        if sz > 512:
+            sz = 512
+        tags1 = ('color') if sz > 32 else ()
+        offset = 0
+        while offset < sz:
+            sz1 = sz if sz <= 32 else 32
+            values = [name, '%.8X' % (addr + offset), '%d' % sz1]
+            values.append('%d' % offset)
+            for j in range(0, sz1, 4):
+                values.append('%.8X' % 0)
+            if offset == 0:
+                id2 = self.tree2.insert('', 'end', tags=tags1, values=tuple(values))
             else:
-                return self.tree_add_lvl1(self.tree2, lvl0, data, expand=False)
-        data = self.tree_data(self.tree1)
-        name = data['name']
-        if self.tree_find_id0(self.tree2, name):
-            return
-        copy1(data, None)
-        if not children:
-            return
-        for i in children:
-            data = self.tree_data(self.tree1, i)
-            copy1(data, name)
+                self.tree2.insert(id2, 'end', values=tuple(values))
+            offset += sz1
+        offset = 0
+        for id1 in self.tree_iter(self.tree2):
+            self.tree2.set(id1, 'offset', '%d' % offset)
+            sz1 = int(self.tree2.set(id1, 'sz'))
+            if sz1 % 4:
+                sz1 = ((sz1>>2) + 1) << 2
+            offset += sz1
 
-    def del_cb(self, *args):
-        id1 = self.tree2.selection()
+    @sel_dec
+    def add_cb(self, w, id1=None):
+        data = self.tree1.set(id1)
+        name = data['name']
+        addr = data['addr']
+        sz = data['sz']
+        self.add_memory(name, addr, sz)
+
+    def add_memory_cb(self):
+        mem = Data(name='mem')
+        mem.add('name', label='Name', wdgt='entry', text='new')
+        mem.add('addr', label='Start address', wdgt='entry', text='00000000')
+        mem.add('sz', label='Size in bytes', wdgt='entry', text='4')
+        dlg = Control(data=mem, parent=self.root, title='Add memory', pady=5)
+        dlg.add_buttons_ok_cancel()
+        dlg.do_modal()
+        if not hasattr(dlg, 'kw'):
+            return
+        if len(dlg.kw.keys()) == 0:
+            return
+        self.add_memory(dlg.kw['name'], dlg.kw['addr'], dlg.kw['sz'])
+
+    @sel_dec
+    def del_cb(self, w, id1=None):
         if id1:
             self.tree2.delete(id1)
 
     def addr_itemid_cb(self, id1):
-        print(id1)
+        #print(id1)
         data = self.tree_data(self.tree2, id1)
         if data['addr']:
             self.addresses[data['addr']] = data['name']
 
-    def start_stop_cb(self, *args):
-        data = self.get_conn_data()
-        remote_ip_addr = data.get_value('remote_ip_addr')
-        remote_port = int(data.get_value('remote_port'))
-        local_ip_addr = data.get_value('local_ip_addr')
-        local_port = int(data.get_value('local_port'))
-        msg = '1234'
-        self.io.start()
-        '''
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind((local_ip_addr, local_port))
-        print(msg.encode('ascii'), (remote_ip_addr, remote_port))
-        sock.sendto(msg.encode('ascii'), (remote_ip_addr, remote_port))
+    def do_io(self, sock, msg, remote_ipaddr, remote_port):
+        #print(sock, msg, remote_ipaddr, remote_port)
+        sock.sendto(msg, (remote_ipaddr, remote_port))
+        #print('data sent')
         data, addr = sock.recvfrom(1024)
-        print(data)
+        #print(data)
+        return data
+
+    def prepare_io_msg(self):
+        msg = bytes()
+        for id1 in self.tree_iter(self.tree2):
+            addr = self.tree2.set(id1, 'addr')
+            msg += bytes(reversed(binascii.unhexlify(addr)))
+            sz = int(self.tree2.set(id1, 'sz'))
+            if sz > 4:
+                addr = int(addr, 16)
+                for i in range(4, sz, 4):
+                    msg += struct.pack('i', addr + i)
+        return msg
+
+    def start_stop_cb(self, *args):
+        if not self.start.get():
+            return
+        #print('start')
+        data = self.get_conn_data()
+        remote_ipaddr = data.get_value('remote_ipaddr')
+        remote_port = int(data.get_value('remote_port'))
+        local_ipaddr = data.get_value('local_ipaddr')
+        local_port = int(data.get_value('local_port'))
+        period_ms = float(data.get_value('period_ms'))
+        if period_ms < 1:
+            period_ms = 1
+        period_ms /= 1000
+
+        msg = self.prepare_io_msg()
+        #print(msg)
+        if not msg:
+            return
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        #sock.settimeout(0.5)
+        sock.bind((local_ipaddr, local_port))
+
+        while self.start.get():
+            data = yield from async(self.do_io, sock, msg, remote_ipaddr, remote_port)
+            #yield from async(lambda: time.sleep(3))
+            #print(data)
+            if data:
+                self.update_wnd(data)
+            yield from async(lambda: time.sleep(period_ms))
+        sock.close()
+        #print('stop')
+
+        #self.io.start()
+        '''
+        print(msg.encode('ascii'), (remote_ipaddr, remote_port))
         '''
         '''
         self.startio = not self.startio
@@ -208,8 +288,13 @@ class EthDebug(Monitor):
             self.root.after_idle(self.io.start)
         '''
 
-    def plot_cb(self, *args):
-        print("start_plot_cb")
+    def update_wnd(self, data):
+        for id1 in self.tree_iter(self.tree2):
+            offset = int(self.tree2.set(id1, 'offset'))
+            sz = int(self.tree2.set(id1, 'sz'))
+            for i in range(0, sz, 4):
+                value = binascii.hexlify(data[(offset+i):(offset+i+4)])
+                self.tree2.set(id1, '+%d' % i, value.upper())
 
     def get_addresses_cb(self, itemid):
         data = self.tree_data(self.tree2, itemid)
@@ -220,16 +305,16 @@ class EthDebug(Monitor):
     def dbg_cb1(self, *args):
         self.addresses = []
         self.iteritems(self.tree2, self.get_addresses_cb, None)
-        print(self.addresses)
+        #print(self.addresses)
         #return self.startio
         return False
 
     def dbg_cb2(self, *args):
-        print('dbg_cb2', *args)
+        #print('dbg_cb2', *args)
         return False
 
     def dbg_cb3(self, *args):
-        print('dbg_cb3', *args)
+        #print('dbg_cb3', *args)
         self.root.after(1000, lambda: self.io.start(0))
         return False
 
