@@ -3,8 +3,13 @@ from collections import OrderedDict as OD
 from copy import deepcopy
 from util import Control, Monitor, Data, ToolTip, telnet_io_cb, sel_dec, async
 import tkinter as tk
-import asyncio, binascii, socket, struct, time
+import binascii, socket, struct, time
 import pdb
+
+try:
+    import asyncio
+except:
+    pass
 
 class EthDebug(Monitor):
     def __init__(self, dev):
