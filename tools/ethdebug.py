@@ -6,10 +6,7 @@ import tkinter as tk
 import binascii, socket, struct, time
 import pdb
 
-try:
-    import asyncio
-except:
-    pass
+import asyncio
 
 class EthDebug(Monitor):
     def __init__(self, dev):

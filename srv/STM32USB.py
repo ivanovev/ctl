@@ -16,7 +16,7 @@ def vcp_io(q):
     return '0'
 
 
-def STM32USB_gpio(ip_addr='192.168.0.1', gpio='c13', val='1'):
+def STM32USB_gpio(gpio='c13', val='1'):
     '''
     Записать/прочитать значение gdio
     @param ip_addr - ip-адрес устройства
@@ -34,7 +34,7 @@ def STM32USB_gpio(ip_addr='192.168.0.1', gpio='c13', val='1'):
         q += '\n'
         return vcp_io(q)
 
-def STM32USB_mdio(ip_addr='192.168.0.1', reg='1', data=''):
+def STM32USB_mdio(reg='1', data=''):
     '''
     Записать/прочитать регистр mdio
     @param ip_addr - ip-адрес устройства
