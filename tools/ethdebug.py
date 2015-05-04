@@ -107,7 +107,7 @@ class EthDebug(Monitor):
                     continue
             except:
                 continue
-            objects[ll[1]] = name #OD([('name',ll[7]),('addr',ll[1]),('sz',ll[2])])
+            objects[addr] = name
             sz1 = int(sz)
             if sz1 <= 4:
                 self.tree1.insert('', 'end', values=(name, addr, sz))
@@ -117,22 +117,6 @@ class EthDebug(Monitor):
             for i in range(0, sz1, 4):
                 sz2 = '4' if i + 4 < sz1 else '%d' % (sz1 - i)
                 self.tree1.insert(id0, 'end', values=(name+'+%.2x'%i, '%.8x'%(addr+i), sz2))
-        '''
-        for k,v in objects.items():
-            lvl0 = v['name']
-            addr = int(v['addr'], 16)
-            sz = int(v['sz'])
-            if sz > 4:
-                v.pop('addr')
-            id0 = self.tree_add_lvl0(self.tree1, v)
-            if sz > 4:
-                v['sz'] = '4'
-                name = v['name']
-                for i in range(0, sz, 4):
-                    v['name'] = name + '+%.2x' % i
-                    v['addr'] = '%.8x' % (addr + i)
-                    self.tree_add_lvl1(self.tree1, lvl0, v, expand=False)
-        '''
 
     def get_conn_data(self):
         conn = Data(name='conn')
@@ -173,7 +157,10 @@ class EthDebug(Monitor):
         tags1 = ('color') if sz > 32 else ()
         offset = 0
         while offset < sz:
-            sz1 = sz if sz <= 32 else 32
+            sz1 = sz - offset
+            if sz1 > 32: sz1 = 32
+            if sz1 % 4:
+                sz1 = ((sz1>>2) + 1) << 2
             values = [name, '%.8X' % (addr + offset), '%d' % sz1]
             values.append('%d' % offset)
             for j in range(0, sz1, 4):
@@ -183,21 +170,23 @@ class EthDebug(Monitor):
             else:
                 self.tree2.insert(id2, 'end', values=tuple(values))
             offset += sz1
+        self.update_offsets()
+
+    def update_offsets(self):
         offset = 0
-        for id1 in self.tree_iter(self.tree2):
+        for id1 in self.iter_tree(self.tree2):
             self.tree2.set(id1, 'offset', '%d' % offset)
             sz1 = int(self.tree2.set(id1, 'sz'))
-            if sz1 % 4:
-                sz1 = ((sz1>>2) + 1) << 2
             offset += sz1
 
     @sel_dec
     def add_cb(self, w, id1=None):
-        data = self.tree1.set(id1)
-        name = data['name']
-        addr = data['addr']
-        sz = data['sz']
-        self.add_memory(name, addr, sz)
+        if id1:
+            data = self.tree1.set(id1)
+            name = data['name']
+            addr = data['addr']
+            sz = data['sz']
+            self.add_memory(name, addr, sz)
 
     def add_memory_cb(self):
         mem = Data(name='mem')
@@ -217,6 +206,7 @@ class EthDebug(Monitor):
     def del_cb(self, w, id1=None):
         if id1:
             self.tree2.delete(id1)
+            self.update_offsets()
 
     def addr_itemid_cb(self, id1):
         #print(id1)
@@ -224,17 +214,9 @@ class EthDebug(Monitor):
         if data['addr']:
             self.addresses[data['addr']] = data['name']
 
-    def do_io(self, sock, msg, remote_ipaddr, remote_port):
-        #print(sock, msg, remote_ipaddr, remote_port)
-        sock.sendto(msg, (remote_ipaddr, remote_port))
-        #print('data sent')
-        data, addr = sock.recvfrom(1024)
-        #print(data)
-        return data
-
     def prepare_io_msg(self):
         msg = bytes()
-        for id1 in self.tree_iter(self.tree2):
+        for id1 in self.iter_tree(self.tree2):
             addr = self.tree2.set(id1, 'addr')
             msg += bytes(reversed(binascii.unhexlify(addr)))
             sz = int(self.tree2.set(id1, 'sz'))
@@ -243,6 +225,14 @@ class EthDebug(Monitor):
                 for i in range(4, sz, 4):
                     msg += struct.pack('i', addr + i)
         return msg
+
+    def do_io(self, sock, msg, remote_ipaddr, remote_port):
+        #print(sock, msg, remote_ipaddr, remote_port)
+        sock.sendto(msg, (remote_ipaddr, remote_port))
+        #print('data sent')
+        data, addr = sock.recvfrom(1024)
+        #print(data)
+        return data
 
     def start_stop_cb(self, *args):
         if not self.start.get():
@@ -268,30 +258,14 @@ class EthDebug(Monitor):
 
         while self.start.get():
             data = yield from async(self.do_io, sock, msg, remote_ipaddr, remote_port)
-            #yield from async(lambda: time.sleep(3))
-            #print(data)
             if data:
                 self.update_wnd(data)
             yield from async(lambda: time.sleep(period_ms))
         sock.close()
         #print('stop')
 
-        #self.io.start()
-        '''
-        print(msg.encode('ascii'), (remote_ipaddr, remote_port))
-        '''
-        '''
-        self.startio = not self.startio
-        if self.startio:
-            self.addresses = OD()
-            self.tree = self.tree2
-            self.iteritems(self.tree1, self.addr_itemid_cb)
-            print(self.addresses)
-            self.root.after_idle(self.io.start)
-        '''
-
     def update_wnd(self, data):
-        for id1 in self.tree_iter(self.tree2):
+        for id1 in self.iter_tree(self.tree2):
             offset = int(self.tree2.set(id1, 'offset'))
             sz = int(self.tree2.set(id1, 'sz'))
             for i in range(0, sz, 4):
@@ -307,8 +281,6 @@ class EthDebug(Monitor):
     def dbg_cb1(self, *args):
         self.addresses = []
         self.iteritems(self.tree2, self.get_addresses_cb, None)
-        #print(self.addresses)
-        #return self.startio
         return False
 
     def dbg_cb2(self, *args):
