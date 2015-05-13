@@ -3,7 +3,7 @@ from collections import OrderedDict as OD
 from copy import deepcopy
 from util import Control, Monitor, Data, ToolTip, telnet_io_cb, sel_dec, async
 import tkinter as tk
-import binascii, socket, struct, time
+import binascii, select, socket, struct, time
 import pdb
 
 import asyncio
@@ -92,23 +92,34 @@ class EthDebug(Monitor):
             ll = l.split()
             if len(ll) != 8:
                 continue
-            if ll[0][-1] != ':':
+            num = ll[0]
+            if num[-1] != ':':
                 continue
             addr = ll[1]
-            if addr in objects:
-                continue
-            objtype = ll[3].upper()
-            if objtype != 'OBJECT':
-                continue
-            name = ll[7]
             sz = ll[2]
             try:
-                if not int(sz):
-                    continue
+                sz1 = int(sz)
             except:
                 continue
+            objtype = ll[3].upper()
+            name = ll[7]
+            if addr in objects:
+                continue
+            if objtype == 'OBJECT':
+                try:
+                    if not sz1:
+                        continue
+                except:
+                    continue
+            elif objtype == 'NOTYPE':
+                if name[0] == '$':
+                    continue
+                if not sz1:
+                    sz = '4'
+                    sz1 = 4
+            else:
+                continue
             objects[addr] = name
-            sz1 = int(sz)
             if sz1 <= 4:
                 self.tree1.insert('', 'end', values=(name, addr, sz))
                 continue
@@ -226,14 +237,17 @@ class EthDebug(Monitor):
                     msg += struct.pack('i', addr + i)
         return msg
 
-    def do_io(self, sock, msg, remote_ipaddr, remote_port):
+    def do_io(self, sock, msg, remote_ipaddr, remote_port, timeout):
         #print(sock, msg, remote_ipaddr, remote_port)
-        sock.sendto(msg, (remote_ipaddr, remote_port))
-        #print('data sent')
-        data, addr = sock.recvfrom(1024)
-        #print(data)
-        return data
+        sz = sock.sendto(msg, (remote_ipaddr, remote_port))
+        r,w,x = select.select([sock], [], [], timeout)
+        #print(r,w,x)
+        if r:
+            data, addr = sock.recvfrom(1024)
+            #print(data, len(data))
+            return data
 
+    @asyncio.coroutine
     def start_stop_cb(self, *args):
         if not self.start.get():
             return
@@ -253,14 +267,16 @@ class EthDebug(Monitor):
         if not msg:
             return
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #sock.settimeout(0.5)
         sock.bind((local_ipaddr, local_port))
+        sock.setblocking(0)
+        #print(local_ipaddr, local_port)
 
         while self.start.get():
-            data = yield from async(self.do_io, sock, msg, remote_ipaddr, remote_port)
+            data = yield from async(self.do_io, sock, msg, remote_ipaddr, remote_port, 3*period_ms/1000)
             if data:
                 self.update_wnd(data)
             yield from async(lambda: time.sleep(period_ms))
+        #sock.shutdown(socket.SHUT_RDWR)
         sock.close()
         #print('stop')
 
