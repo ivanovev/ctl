@@ -2,7 +2,7 @@
 from telnetlib import Telnet
 import re
 
-from util.misc import ping
+from util import ping
 from util.socketio import send_data, recv_data, get_fsz
 
 def SAM7X_telnet(ip_addr, cmd, *args):

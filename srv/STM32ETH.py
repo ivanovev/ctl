@@ -1,7 +1,7 @@
 
 from telnetlib import Telnet
 from re import compile
-from util.misc import ping
+from util import ping
 from util.socketio import send_data, recv_data, get_fsz
 import socket
 

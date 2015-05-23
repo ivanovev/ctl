@@ -9,10 +9,13 @@ from util import Data
 from util.dataio import DataIO
 from util.socketio import recv_data, send_data, chunks
 from util.columns import *
+from util.io import MyAIO
 from .text2 import Text2
 
 class TextIO(DataIO):
     def __init__(self, dev):
+        self.aio = True
+        self.io_start = lambda *args: asyncio.async(self.io.start())
         data = Data()
         DataIO.__init__(self, data=data, dev=dev, title='Pcl edit')
         self.fileext = 'pcl'
@@ -20,9 +23,11 @@ class TextIO(DataIO):
         self.center()
 
     def init_io(self):
-        del self.io[:]
-        self.io.add(lambda: self.efc_cb1('pcl'), self.tmp_cb2, self.tmp_cb3, self.cmdio_thread)
-        self.io.add(self.text_cb1, self.text_cb2, lambda: True, self.textio_thread)
+        self.io = MyAIO(self)
+        self.io.add(self.text_cb1, self.text_cb2)
+        #del self.io[:]
+        #self.io.add(lambda: self.efc_cb1('pcl'), self.tmp_cb2, self.tmp_cb3, self.cmdio_thread)
+        #self.io.add(self.text_cb1, self.text_cb2, lambda: True, self.textio_thread)
 
     def append_wdgt(self, column, name, label, text, width=None, state=None, msg='', row=0, columnspan=1):
         self.data.add_page(name, send=False)
@@ -49,8 +54,8 @@ class TextIO(DataIO):
             self.add_fb()
             self.pb = ttk.Progressbar(self.fb, orient=tk.HORIZONTAL, maximum=100)
             self.pb.pack(fill=tk.X, expand=1, padx=5, pady=5, side=tk.LEFT)
-            self.add_button(self.fb, 'Write', self.write_cb)
             self.add_button(self.fb, 'Read', self.read_cb)
+            self.add_button(self.fb, 'Write', self.write_cb)
             self.txt.text_change_cb = self.text_change_cb
 
     def fileopen(self, fname, *args):
