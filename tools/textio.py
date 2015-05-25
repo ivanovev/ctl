@@ -1,30 +1,34 @@
 
 from collections import OrderedDict as OD
 from threading import Thread
+import asyncio
 import tkinter as tk
 import tkinter.ttk as ttk
 import pdb
 
 from util import Data
-from util.dataio import DataIO
+from util.tftp import Tftp
+from util.control import Control
+from util.columns import c_ip_addr
 from util.socketio import recv_data, send_data, chunks
 from util.columns import *
-from util.io import MyAIO
+from util.myio import MyAIO
 from .text2 import Text2
 
-class TextIO(DataIO):
+class TextIO(Control):
     def __init__(self, dev):
+        data = Data()
+        Control.__init__(self, data=data, dev=dev, title='Pcl edit')
         self.aio = True
         self.io_start = lambda *args: asyncio.async(self.io.start())
-        data = Data()
-        DataIO.__init__(self, data=data, dev=dev, title='Pcl edit')
         self.fileext = 'pcl'
         self.filemode = 'r'
-        self.center()
+        #self.center()
 
     def init_io(self):
-        self.io = MyAIO(self)
-        self.io.add(self.text_cb1, self.text_cb2)
+        self.io = Tftp(self.data.dev[c_ip_addr], 69, 'script.pcl')
+        self.io.add(self.io.tftp_cb1, self.io.tftp_cb2, self.io.tftp_cb3, self.io.io_cb)
+        self.io.data_cb = self.data_cb
         #del self.io[:]
         #self.io.add(lambda: self.efc_cb1('pcl'), self.tmp_cb2, self.tmp_cb3, self.cmdio_thread)
         #self.io.add(self.text_cb1, self.text_cb2, lambda: True, self.textio_thread)
@@ -58,6 +62,20 @@ class TextIO(DataIO):
             self.add_button(self.fb, 'Write', self.write_cb)
             self.txt.text_change_cb = self.text_change_cb
 
+    def read_cb(self, *args):
+        self.read = True
+        self.ip_addr = self.data.get_value(c_ip_addr)
+        self.text_clear(self.txt.text)
+        self.io_start()
+
+    def write_cb(self, *args):
+        self.read = False
+        self.io_start()
+
+    def data_cb(self, bb=b''):
+        if bb:
+            self.text_append(self.txt.text, bb.decode('ascii'), see=False)
+
     def fileopen(self, fname, *args):
         data = self.read_file(fname)
         self.txt.text.delete(0.0, tk.END)
@@ -65,7 +83,7 @@ class TextIO(DataIO):
         self.text_change_cb()
 
     def text_change_cb(self):
-        self.update_fsz_md5()
+        #self.update_fsz_md5()
         try:
             data = self.txt.text.get(tk.SEL_FIRST, tk.SEL_LAST)
             self.data.set_value('fszsel', '%d' % len(data))
