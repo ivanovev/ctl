@@ -1,17 +1,12 @@
 
-from collections import OrderedDict as OD
-from threading import Thread
 import asyncio
 import tkinter as tk
 import tkinter.ttk as ttk
-import pdb
 
 from util import Data
 from util.tftp import Tftp
 from util.control import Control
 from util.columns import c_ip_addr
-from util.socketio import recv_data, send_data, chunks
-from util.columns import *
 from util.myio import MyAIO
 from .text2 import Text2
 
@@ -23,15 +18,10 @@ class TextIO(Control):
         self.io_start = lambda *args: asyncio.async(self.io.start())
         self.fileext = 'pcl'
         self.filemode = 'r'
-        #self.center()
 
     def init_io(self):
         self.io = Tftp(self.data.dev[c_ip_addr], 69, 'script.pcl')
-        self.io.add(self.io.tftp_cb1, self.io.tftp_cb2, self.io.tftp_cb3, self.io.io_cb)
         self.io.data_cb = self.data_cb
-        #del self.io[:]
-        #self.io.add(lambda: self.efc_cb1('pcl'), self.tmp_cb2, self.tmp_cb3, self.cmdio_thread)
-        #self.io.add(self.text_cb1, self.text_cb2, lambda: True, self.textio_thread)
 
     def append_wdgt(self, column, name, label, text, width=None, state=None, msg='', row=0, columnspan=1):
         self.data.add_page(name, send=False)
@@ -63,21 +53,26 @@ class TextIO(Control):
             self.txt.text_change_cb = self.text_change_cb
 
     def read_cb(self, *args):
-        self.read = True
+        self.io.read = True
         self.ip_addr = self.data.get_value(c_ip_addr)
         self.text_clear(self.txt.text)
         self.io_start()
 
     def write_cb(self, *args):
-        self.read = False
+        self.io.read = False
         self.io_start()
 
     def data_cb(self, bb=b''):
         if bb:
             self.text_append(self.txt.text, bb.decode('ascii'), see=False)
+        else:
+            return self.get_data().encode('ascii')
+
 
     def fileopen(self, fname, *args):
-        data = self.read_file(fname)
+        f = open(fname, 'rb')
+        data = f.read()
+        f.close()
         self.txt.text.delete(0.0, tk.END)
         self.txt.text.insert(0.0, data)
         self.text_change_cb()
@@ -102,47 +97,4 @@ class TextIO(Control):
         if len(data):
             data = data[:-1]
         return data
-
-    def textio_thread(self):
-        dev = self.data.dev
-        port = 8888
-        ip_addr = self.data.get_value('ip_addr')
-        if self.read:
-            q = self.qi
-            self.fsz = int(self.io.ioval['fsz'])
-            self.io_func = recv_data
-            if dev[c_type] == 'SAM7X':
-                port = 8889
-        else:
-            q = self.qo
-            self.fsz = int(self.data.get_value('fsz'))
-            self.io_func = send_data
-        if not self.fsz:
-            return
-        self.io_func(ip_addr, port, q, fsz=self.fsz)
-        self.io_func.t.join()
-
-    def text_cb1(self):
-        if self.read:
-            return True
-        else:
-            data = self.get_data()
-            for c in self.chunks(data, 512):
-                self.qo.put(c)
-            return True
-
-    def text_cb2(self):
-        if self.read:
-            line = self.qi.get_nowait()
-            if int(self.pb['value']) == 0:
-                self.text_clear(self.txt.text)
-            self.text_append(self.txt.text, line, see=False)
-        self.update_progress()
-        return False
-
-    def chunks(self, l, n):
-        """ Yield successive n-sized chunks from l.
-        """
-        for i in range(0, len(l), n):
-            yield l[i:i+n]
 
