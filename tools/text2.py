@@ -4,7 +4,7 @@ http://stackoverflow.com/questions/16369470/tkinter-adding-line-number-to-text-w
 '''
 
 import tkinter as tk
-from util import UI
+from util import MyUI
 
 class TextLineNumbers(tk.Canvas):
     def __init__(self, *args, **kwargs):
@@ -57,7 +57,7 @@ class CustomText(tk.Text):
             interp alias {{}} ::{widget} {{}} widget_proxy {widget} _{widget}
         '''.format(widget=str(self)))
 
-class Text2(tk.Frame, UI):
+class Text2(tk.Frame, MyUI):
     def __init__(self, *args, **kwargs):
         tk.Frame.__init__(self, *args, **kwargs)
         self.text = CustomText(self)

@@ -1,5 +1,5 @@
 
-import asyncio
+import io, asyncio
 import tkinter as tk
 import tkinter.ttk as ttk
 
@@ -10,18 +10,18 @@ from util.columns import c_ip_addr
 from util.myio import MyAIO
 from .text2 import Text2
 
-class TextIO(Control):
+class TextIO(Control, io.BytesIO):
     def __init__(self, dev):
         data = Data()
         Control.__init__(self, data=data, dev=dev, title='Pcl edit')
+        io.BytesIO.__init__(self)
         self.aio = True
         self.io_start = lambda *args: asyncio.async(self.io.start())
         self.fileext = 'pcl'
         self.filemode = 'r'
 
     def init_io(self):
-        self.io = Tftp(self.data.dev[c_ip_addr], 69, 'script.pcl')
-        self.io.data_cb = self.data_cb
+        self.io = Tftp(self.data.dev[c_ip_addr], 69, self, 'script.pcl', read=True, wnd=self)
 
     def append_wdgt(self, column, name, label, text, width=None, state=None, msg='', row=0, columnspan=1):
         self.data.add_page(name, send=False)
@@ -60,14 +60,20 @@ class TextIO(Control):
 
     def write_cb(self, *args):
         self.io.read = False
+        self.seek(0)
+        self.truncate(0)
+        self.write(self.get_data())
         self.io_start()
 
-    def data_cb(self, bb=b''):
-        if bb:
+    def write(self, bb):
+        if self.io.read:
             self.text_append(self.txt.text, bb.decode('ascii'), see=False)
         else:
-            return self.get_data().encode('ascii')
+            bb = bb.encode('ascii')
+            io.BytesIO.write(self, bb)
 
+    def close(self):
+        pass
 
     def fileopen(self, fname, *args):
         f = open(fname, 'rb')
