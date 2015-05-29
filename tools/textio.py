@@ -84,7 +84,7 @@ class TextIO(Control, io.BytesIO):
         self.text_change_cb()
 
     def text_change_cb(self):
-        #self.update_fsz_md5()
+        self.update_fsz_crc32_md5()
         try:
             data = self.txt.text.get(tk.SEL_FIRST, tk.SEL_LAST)
             self.data.set_value('fszsel', '%d' % len(data))

@@ -1,14 +1,14 @@
 
 from collections import OrderedDict as OD
 from copy import deepcopy
-from util import Control, Monitor, Data, ToolTip, telnet_io_cb, sel_dec, async
+from util import Control, Monitor, MyUI, Data, ToolTip, telnet_io_cb, sel_dec, async
 import tkinter as tk
 import binascii, select, socket, struct, time
 import pdb
 
 import asyncio
 
-class EthDebug(Monitor):
+class EthDebug(Control):
     def __init__(self, dev):
         self.fileext = 'symtab'
         self.columns1 = ['name', 'addr', 'sz']
@@ -16,7 +16,7 @@ class EthDebug(Monitor):
         #print(self.columns2)
         self.startio = False
         self.aio = True
-        Monitor.__init__(self)
+        Control.__init__(self)
         self.root.title('UDP Eth debug')
 
     def add_main_menu(self):
@@ -80,8 +80,11 @@ class EthDebug(Monitor):
         self.frame.rowconfigure(1, weight=1)
 
     def init_io(self):
+        pass
+        '''
         del self.io[:]
         self.io.add(self.dbg_cb1, self.dbg_cb2, self.dbg_cb3, self.dbgio_thread)
+        '''
 
     def fileopen(self, *args):
         self.tree_clear(self.tree1)
@@ -294,6 +297,7 @@ class EthDebug(Monitor):
             return
         self.addresses.append(data['addr'])
 
+    '''
     def dbg_cb1(self, *args):
         self.addresses = []
         self.iteritems(self.tree2, self.get_addresses_cb, None)
@@ -312,4 +316,4 @@ class EthDebug(Monitor):
         while True:
             time.sleep(1)
             break
-
+    '''

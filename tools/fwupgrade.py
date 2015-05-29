@@ -1,19 +1,45 @@
 
+import asyncio
 from collections import OrderedDict as OD
-from util import Data, telnet_io_cb
+from util import Control, Data, Tftp, c_type, c_ip_addr
 from util.dataio import DataIO
+import pdb
 
-class FWupgrade(DataIO):
+class FWupgrade(Control):
     def __init__(self, dev, title='FW upgrade'):
         data = Data()
         data.dev = dev
         data.buttons = OD()
-        self.add_tx_cmds(data, txmd5=True)
-        DataIO.__init__(self, data, dev, title=title)
+        self.txcrc32 = True
+        self.txmd5 = False
+        if dev[c_type] == 'SAM7X':
+            self.txcrc32 = False
+            self.txmd5 = True
+        self.add_tx_cmds(data, txcrc32=self.txcrc32, txmd5=self.txmd5)
+        Control.__init__(self, data, dev, title=title)
         data.cmds['send'].w.configure(text='Start upgrade')
+        self.fileext = 'bin'
+        self.filemode = 'rb'
+        self.io_start = lambda *args: asyncio.async(self.io.start())
 
     def init_io(self):
-        del self.io[:]
-        self.io.add(lambda: self.efc_cb1('fw'), self.tmp_cb2, self.tmp_cb3, self.cmdio_thread)
-        self.io.add(self.data_cb1, self.data_cb2, lambda: True, self.dataio_thread)
+        self.io = Tftp(self.data.dev[c_ip_addr], 69, self, 'fw.bin', read=False, wnd=self)
+
+    def fileopen(self, fname):
+        print(fname)
+        if hasattr(self.io, 'st'):
+            if getattr(self.io.st, 'closed', False):
+                self.io.st.close()
+        self.data.set_value('fname', fname)
+        self.update_fsz_crc32_md5(fname)
+        self.io.st = open(fname, 'rb')
+        self.io.remotefname = '.'.join([self.data.get_value('crc32'), self.fileext]).replace('0x', '')
+        return True
+
+    def write_cb(self, *args):
+        self.io.read = False
+        fname = self.data.get_value('fname')
+        if fname:
+            self.fileopen(fname)
+            self.io_start()
 
