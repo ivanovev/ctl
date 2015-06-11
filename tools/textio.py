@@ -33,13 +33,12 @@ class TextIO(Control, io.BytesIO):
         self.add_menu_file()
         self.f1 = tk.Frame(self.frame)
         self.f1.grid(column=0, row=0, sticky=tk.W)
-        self.append_wdgt(0, 'ip_addr', 'IP Address', self.data.dev['ip_addr'] if hasattr(self.data, 'dev') else '192.168.0.1', 15)
-        self.append_wdgt(1, 'fsz', ' Size', '0', 8, 'readonly', 'dec')
-        self.append_wdgt(2, 'fszhex', '', '0', 8, 'readonly', 'hex')
-        self.append_wdgt(3, 'fszsel', '', '0', 8, 'readonly', 'selection')
-        self.append_wdgt(4, 'fszselhex', '', '0', 8, 'readonly', 'selection hex')
-        self.append_wdgt(0, 'crc32', 'CRC32', '0', 15, 'readonly', row=1)
-        self.append_wdgt(1, 'md5', 'MD5', '0', 40, 'readonly', row=1, columnspan=3)
+        self.append_wdgt(0, 'ip_addr', 'IP Address', self.data.dev['ip_addr'] if hasattr(self.data, 'dev') else '192.168.0.1', 10)
+        self.append_wdgt(1, 'crc32', 'CRC32', '0', 10, 'readonly')
+        self.append_wdgt(2, 'fsz', ' Size', '0', 8, 'readonly', 'dec')
+        self.append_wdgt(3, 'fszhex', '', '0', 8, 'readonly', 'hex')
+        self.append_wdgt(4, 'fszsel', '', '0', 8, 'readonly', 'selection')
+        self.append_wdgt(5, 'fszselhex', '', '0', 8, 'readonly', 'selection hex')
         self.txt = Text2(self.frame)
         self.txt.grid(column=0, row=2, sticky=tk.NSEW)
         self.frame.columnconfigure(0, weight=1)
@@ -84,7 +83,7 @@ class TextIO(Control, io.BytesIO):
         self.text_change_cb()
 
     def text_change_cb(self):
-        self.update_fsz_crc32_md5()
+        self.update_fsz_crc32()
         try:
             data = self.txt.text.get(tk.SEL_FIRST, tk.SEL_LAST)
             self.data.set_value('fszsel', '%d' % len(data))

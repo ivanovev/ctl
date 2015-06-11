@@ -2,7 +2,6 @@
 import asyncio
 from collections import OrderedDict as OD
 from util import Control, Data, Tftp, c_type, c_ip_addr
-from util.dataio import DataIO
 import pdb
 
 class FWupgrade(Control):
@@ -11,11 +10,7 @@ class FWupgrade(Control):
         data.dev = dev
         data.buttons = OD()
         self.txcrc32 = True
-        self.txmd5 = False
-        if dev[c_type] == 'SAM7X':
-            self.txcrc32 = False
-            self.txmd5 = True
-        self.add_tx_cmds(data, txcrc32=self.txcrc32, txmd5=self.txmd5)
+        self.add_tx_cmds(data, txcrc32=self.txcrc32)
         Control.__init__(self, data, dev, title=title)
         data.cmds['send'].w.configure(text='Start upgrade')
         self.fileext = 'bin'
@@ -31,7 +26,7 @@ class FWupgrade(Control):
             if getattr(self.io.st, 'closed', False):
                 self.io.st.close()
         self.data.set_value('fname', fname)
-        self.update_fsz_crc32_md5(fname)
+        self.update_fsz_crc32(fname)
         self.io.st = open(fname, 'rb')
         self.io.remotefname = '.'.join([self.data.get_value('crc32'), self.fileext]).replace('0x', '')
         return True
