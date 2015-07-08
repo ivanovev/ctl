@@ -15,7 +15,6 @@ class EthDebug(Control):
         self.columns2 = ['name', 'addr', 'sz', 'offset'] + ['+%d' % (4*i) for i in range(0, 8)]
         #print(self.columns2)
         self.startio = False
-        self.aio = True
         Control.__init__(self)
         self.root.title('UDP Eth debug')
 

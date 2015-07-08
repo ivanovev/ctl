@@ -15,7 +15,6 @@ class TextIO(Control, io.BytesIO):
         data = Data()
         Control.__init__(self, data=data, dev=dev, title='Pcl edit')
         io.BytesIO.__init__(self)
-        self.aio = True
         self.io_start = lambda *args: asyncio.async(self.io.start())
         self.fileext = 'pcl'
         self.filemode = 'r'
