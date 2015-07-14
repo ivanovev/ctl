@@ -52,7 +52,7 @@ class TextIO(Control, io.BytesIO):
 
     def read_cb(self, *args):
         self.io.read = True
-        self.ip_addr = self.data.get_value(c_ip_addr)
+        self.io.ip_addr = self.data.get_value(c_ip_addr)
         self.text_clear(self.txt.text)
         self.io_start()
 
