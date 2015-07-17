@@ -24,9 +24,15 @@ def SAM7X_telnet(ip_addr, cmd, *args):
         cmd += '\n'
         tn.write(cmd.encode('ascii'))
         s = tn.read_until(b'#> ', 2)
-        tn.write(b'exit\n')
-        tn.read_until(b'#> ', 2)
         tn.close()
+        '''
+        try:
+            tn.write(b'exit\n')
+            tn.read_until(b'#> ', 2)
+            tn.close()
+        except:
+            pass
+        '''
 
         def splitstr(s, b):
             r = re.compile(b)
