@@ -16,7 +16,7 @@ def SAM7X_telnet(ip_addr, cmd, *args):
         cmd = ' '.join([cmd] + list(args))
         cmd = cmd.strip()
     if not ping(ip_addr):
-        print('Failed to ping %s' % ip_addr)
+        print('Failed to ping  %s' % ip_addr)
         return
     try:
         tn = Telnet(ip_addr)
