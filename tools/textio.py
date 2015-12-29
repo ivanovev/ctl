@@ -46,8 +46,8 @@ class TextIO(Control, io.BytesIO):
             self.add_fb()
             self.pb = ttk.Progressbar(self.fb, orient=tk.HORIZONTAL, maximum=100)
             self.pb.pack(fill=tk.X, expand=1, padx=5, pady=5, side=tk.LEFT)
-            self.add_button(self.fb, 'Read', self.read_cb)
             self.add_button(self.fb, 'Write', self.write_cb)
+            self.add_button(self.fb, 'Read', self.read_cb)
             self.txt.text_change_cb = self.text_change_cb
 
     def read_cb(self, *args):
