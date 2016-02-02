@@ -1,7 +1,8 @@
 
 import asyncio
 from collections import OrderedDict as OD
-from util import Control, Data, Tftp, c_type, c_ip_addr
+from util import Control, Data, c_type, c_ip_addr
+from util.tftp import Tftp
 import pdb
 
 class FWupgrade(Control):
