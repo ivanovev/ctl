@@ -3,11 +3,7 @@ import io, asyncio
 import tkinter as tk
 import tkinter.ttk as ttk
 
-from util import Data
-from util.tftp import Tftp
-from util.control import Control
-from util.columns import c_ip_addr
-from util.myio import MyAIO
+from util import Data, Control, Tftp, c_ip_addr, MyAIO
 from .text2 import Text2
 
 class TextIO(Control, io.BytesIO):

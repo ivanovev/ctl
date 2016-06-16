@@ -1,9 +1,7 @@
 
 import asyncio
 from collections import OrderedDict as OD
-from util import Control, Data, c_type, c_ip_addr
-from util.tftp import Tftp
-import pdb
+from util import Data, Control, Tftp, c_type, c_ip_addr
 
 class FWupgrade(Control):
     def __init__(self, dev, title='FW upgrade'):

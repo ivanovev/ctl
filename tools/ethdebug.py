@@ -1,10 +1,9 @@
 
 from collections import OrderedDict as OD
 from copy import deepcopy
-from util import Control, Monitor, MyUI, Data, ToolTip, telnet_io_cb, sel_dec, async
 import tkinter as tk
 import binascii, select, socket, struct, time
-import pdb
+from util import Control, Monitor, MyUI, Data, ToolTip, telnet_io_cb, sel_dec, async
 
 import asyncio
 
