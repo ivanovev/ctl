@@ -87,3 +87,18 @@ def STM32ETH_tftp_put(ip_addr='192.168.0.1', fname='script.pcl'):
     print('tftp_put')
     return ''
 
+def STM32ETH_spi(ip_addr='192.168.0.1', spi='2.d8', data='0xC00000', cpha='1', cpol='0', save=''):
+    '''
+    Обратиться по spi
+    @param ip_addr - ip-адрес устройства
+    @param spi - номер spi
+    @param data - значение в виде 0xABCD
+    @param ncpha - фаза spiclk (0 - по нечётным перепадам spiclk, 1 - по чётным)
+    @param cpol - полярность spiclk (0: _|^|_|^|_|^|_..., 1: ^|_|^|_|^|_|^...)
+    @param save - сохранение в efc, -1, 0, 1, 63 или '' (-1 или '' - не сохранять)
+    @return ответ spi
+    '''
+    cmd = ' '.join(['spi', spi, data, cpha, cpol, save])
+    cmd = cmd.strip()
+    return STM32ETH_telnet(ip_addr, cmd)
+
